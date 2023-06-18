@@ -41,7 +41,9 @@ def main(argv):
   # Load the TFLite model and allocate tensors.
   #interpreter = tf.lite.Interpreter(model_path="yamnet.tflite")
   interpreter = tf.Interpreter(model_path="yamnet.tflite")
-  
+  interpreter.allocate_tensors()
+  inputs = interpreter.get_input_details()
+  outputs = interpreter.get_output_details()
 
   yamnet_classes = class_names('yamnet_class_map.csv')
 
@@ -57,6 +59,7 @@ def main(argv):
     if sr != params.SAMPLE_RATE:
       waveform = resampy.resample(waveform, sr, params.SAMPLE_RATE)
 
+
     audioarray=np.array(waveform, dtype=np.float32)
     print(audioarray.shape)
     print(type(audioarray))
@@ -64,9 +67,6 @@ def main(argv):
     sets=math.ceil(sets)
     print("number of sets",sets)
     for n in range(sets):
-      interpreter.allocate_tensors()
-      inputs = interpreter.get_input_details()
-      outputs = interpreter.get_output_details()
       print("\n","current set",n,"\n")
       audioarray=audioarray[(n*15600):((n+1)*15600)]
       
