@@ -63,30 +63,29 @@ def main(argv):
     audioarray=np.array(waveform, dtype=np.float32)
     print(audioarray.shape)
     print(type(audioarray))
-    sets=len(audioarray)/15600
-    sets=math.ceil(sets)
-    print("number of sets",sets)
-    for n in range(sets):
-      print("\n","current set",n,"\n")
-      audioarray=audioarray[(n*15600):((n+1)*15600)]
-      
-      # Predict YAMNet classes.
-      interpreter.set_tensor(inputs[0]['index'], np.expand_dims(audioarray, axis=0))
+    # sets=len(audioarray)/15600
+    # sets=math.ceil(sets)
+    # print("number of sets",sets)
+    # print("\n","current set",n,"\n")
+    # audioarray=audioarray[(n*15600):((n+1)*15600)]
+    
+    # Predict YAMNet classes.
+    interpreter.set_tensor(inputs[0]['index'], np.expand_dims(audioarray, axis=0))
 
-      # Predict YAMNet classes.
-      #interpreter.set_tensor(inputs[0]['index'], np.expand_dims(np.array(waveform, dtype=np.float32), axis=0))
-      interpreter.invoke()
-      scores = interpreter.get_tensor(outputs[0]['index'])
+    # Predict YAMNet classes.
+    #interpreter.set_tensor(inputs[0]['index'], np.expand_dims(np.array(waveform, dtype=np.float32), axis=0))
+    interpreter.invoke()
+    scores = interpreter.get_tensor(outputs[0]['index'])
 
-      # Scores is a matrix of (time_frames, num_classes) classifier scores.
-      # Average them along time to get an overall classifier output for the clip.
-      prediction = np.mean(scores, axis=0)
-      # Report the highest-scoring classes and their scores.
-      top5_i = np.argsort(prediction)[::-1][:5]
-      print(file_name, ':\n' + 
-            '\n'.join('  {:12s}: {:.3f}'.format(yamnet_classes[i], prediction[i])
-                      for i in top5_i))
+    # Scores is a matrix of (time_frames, num_classes) classifier scores.
+    # Average them along time to get an overall classifier output for the clip.
+    prediction = np.mean(scores, axis=0)
+    # Report the highest-scoring classes and their scores.
+    top5_i = np.argsort(prediction)[::-1][:5]
+    print(file_name, ':\n' + 
+          '\n'.join('  {:12s}: {:.3f}'.format(yamnet_classes[i], prediction[i])
+                    for i in top5_i))
 
 
-  if __name__ == '__main__':
-    main(sys.argv[1:])
+if __name__ == '__main__':
+  main(sys.argv[1:])
