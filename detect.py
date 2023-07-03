@@ -16,6 +16,7 @@ import os
 import time
 import tensorflow as tf
 import csv
+from ipcqueue import posixmq
  
 # path = "/home/raspberry/rec"
 # path2 = "/home/raspberry/rec/"
