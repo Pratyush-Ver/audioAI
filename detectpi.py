@@ -18,8 +18,9 @@ import tflite_runtime.interpreter as tf
 import csv
 from ipcqueue import posixmq
 
-q1 = posixmq.Queue('/telemtry')
-q2 = posixmq.Queue('/notify')
+q1 = posixmq.Queue('/telemetry',maxmsgsize=8192)
+q2 = posixmq.Queue('/notify',maxmsgsize=8192)
+print(q1.qattr())
 
 
 path = "/home/raspberry/rec"
@@ -72,12 +73,14 @@ q2_payload = {
 }
 
 def build_payload(onset_detects,onset_detects_values,onset_classes,filename):
+    if len(onset_detects)<=0:
+        return 
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%YT%H-%M-%S")
     payload["deviceId"]=deviceId
     payload["deviceType"]=deviceType
-    payload["gpsLat"]=gpsLat
-    payload["gpsLong"]=gpsLong
+    payload["gpsLat"]="21.7019"
+    payload["gpsLong"]="77.8960"
     payload["timeStamp"]=dt_string
     payload["recFileName"]=filename
     payload["recTimeStamp"]=filename.split("_")[1]
@@ -87,22 +90,24 @@ def build_payload(onset_detects,onset_detects_values,onset_classes,filename):
     payload["detectionCount"]=len(onset_detects)
     payload["onsetThreshold"]=threshold
     payload["classThreshold"]=classThreshold
-    payload["classType"]="all"
+    payload["classType"]="ambient"
     payload["peakTimeStamp"]=onset_detects
     payload["peakMagnitude"]=onset_detects_values
     payload["peakClass"]=onset_classes
     json_write(payload)
     print("ambient payload sent")
     print(payload)
-    #q1.put(payload)
+    q1.put(payload)
 
 def build_anomaly_payload(onset_detects,onset_detects_values,onset_classes,filename):
+    if len(onset_detects)<=0:
+        return
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%YT%H-%M-%S")
     q2_payload["deviceId"]=deviceId
     q2_payload["deviceType"]=deviceType
-    q2_payload["gpsLat"]=gpsLat
-    q2_payload["gpsLong"]=gpsLong
+    q2_payload["gpsLat"]="21.7019"
+    q2_payload["gpsLong"]="77.8960"
     q2_payload["timeStamp"]=dt_string
     q2_payload["recFileName"]=filename
     q2_payload["recTimeStamp"]=filename.split("_")[1]
@@ -119,15 +124,17 @@ def build_anomaly_payload(onset_detects,onset_detects_values,onset_classes,filen
     json_write(payload)
     print("anomaly payload sent")
     print(q2_payload)
-    #q2.put(q2_payload)
+    q2.put(q2_payload)
 
 def build_unknown_payload(onset_detects,onset_detects_values,onset_classes,filename):
+    if len(onset_detects)<=0:
+        return
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%YT%H-%M-%S")
     q2_payload["deviceId"]=deviceId
     q2_payload["deviceType"]=deviceType
-    q2_payload["gpsLat"]=gpsLat
-    q2_payload["gpsLong"]=gpsLong
+    q2_payload["gpsLat"]="21.7019"
+    q2_payload["gpsLong"]="77.8960"
     q2_payload["timeStamp"]=dt_string
     q2_payload["recFileName"]=filename
     q2_payload["recTimeStamp"]=filename.split("_")[1]
@@ -144,7 +151,7 @@ def build_unknown_payload(onset_detects,onset_detects_values,onset_classes,filen
     json_write(payload)
     print("unknown payload sent")
     print(q2_payload)
-    #q2.put(q2_payload)
+    q2.put(q2_payload)
 
 
 # Writing to sample.json
@@ -170,9 +177,9 @@ def class_names(class_map_csv):
     return np.array([display_name for (_, _, display_name) in reader])
 
 def inference(temp_data,filename):
-    yamnet_classes = class_names('yamnet_class_map.csv')
+    yamnet_classes = class_names('/home/raspberry/yamnet_class_map.csv')
     #interpreter = tf.lite.Interpreter(model_path="yamnet.tflite")
-    interpreter = tf.Interpreter(model_path="yamnet.tflite")
+    interpreter = tf.Interpreter(model_path="/home/raspberry/yamnet.tflite")
     interpreter.allocate_tensors()
     inputs = interpreter.get_input_details()
     outputs = interpreter.get_output_details()
@@ -190,8 +197,8 @@ def inference(temp_data,filename):
     return onsetclass,onsetpred
 
 def detectanomaly(onsetclass,onsetpred,classThreshold):
-    ambient=["Silence","Animal","Bird","Frog","Wild animals","Bird vocalization, bird call, bird song","Chirp, tweet","Cat","Meow","Domestic animals, pets","Cattle, bovinae","Pig","Oink"]
-    anomaly=["Glass","Wood","Speech","Cough","Chopping (food)","Tools","Filing (rasp)","Rub","Scrape","Chopping (food)","Beep, bleep","Buzzer"]
+    ambient=["Silence","Animal","Bird","Frog","Wild animals","Bird vocalization, bird call, bird song","Chirp, tweet","Cat","Meow","Domestic animals, pets","Cattle, bovinae","Pig","Oink","Hiss","Owl"]
+    anomaly=["Glass","Wood","Speech","Cough","Chopping (food)","Tools","Filing (rasp)","Rub","Scrape","Chopping (food)","Beep, bleep","Buzzer","Hammer","Engine starting","Sewing machine","Rub","Tools","Sawing","Sanding","Filing (rasp)","Keys jangling","Coin (dropping)","Engine","Ratchet, pawl","Jackhammer","Chainsaw","Vehicle","Light engine (high frequency)"]
     if float(onsetpred) <= float(classThreshold):
         print("detectanomaly function if statement",float(onsetpred)," ", float(classThreshold))
         return 2
@@ -202,7 +209,7 @@ def detectanomaly(onsetclass,onsetpred,classThreshold):
         if onsetclass == anomaly[i]:
             return 1
     print("detectanomaly function last return statement")
-    return 2
+    return 0
 #sampling rate is variable
 
 #filename="rec_2023-06-10T14-37-00.wav"
@@ -223,10 +230,10 @@ while 1:
     recSamplingRate=data["recSamplingRate"]
     threshold=data["onsetThreshold"]
     classThreshold=data["classThreshold"]
-    f= open("/home/raspberry/cloud_client/config_files/gps.json")
+    f= open("/tmp/gps.json")
     data = json.load(f)
-    gpsLat=data["lat"]
-    gpsLong=data["long"]
+    gpsLat=float(data["lat"])
+    gpsLong=float(data["long"])
     ############### Load Data ################
 
     flag, dir_list=filecheck()
@@ -242,6 +249,8 @@ while 1:
             y_init, sr_init = librosa.load(path2+audio_file,sr=16000)
             print("File found! path is ",path2+file," sr is ",sr_init)
             print("type of y_init is ",(y_init.dtype)," size is",len(y_init))
+            if len(y_init)<15600:
+                break
             #print("y is",y_init)
             # Plot waveform of amplitude vs time
             #plt.figure(figsize=(14, 5))
@@ -304,7 +313,7 @@ while 1:
             print("detected time are",onset_detects)
             print("detected values are",onset_detects_values)
             print("detected classes are",onset_classes)
-            if len(onset_times) != 0:
+            if len(onset_detects) > 0:
                 build_payload(onset_detects,onset_detects_values,onset_classes,file)
                 if len(onset_detects_anomaly)!=0:
                     build_anomaly_payload(onset_detects_anomaly,onset_detects_values_anomaly,onset_classes_anomaly,file)
@@ -335,5 +344,5 @@ while 1:
             #build_payload(onset_detects,onset_detects_values,onset_classes,file)
             #os.remove(path2+audio_file)
             #os.rename(path2+audio_file,path3+audio_file)
-    break
+    #break
         
