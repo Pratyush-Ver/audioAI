@@ -72,8 +72,8 @@ q2_payload = {
 "peakClass":[]
 }
 
-def build_payload(onset_detects,onset_detects_values,onset_classes,filename):
-    if len(onset_detects)<=0:
+def build_payload(onset_classes,filename):
+    if len(onset_classes)<=0:
         return 
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%YT%H-%M-%S")
@@ -87,20 +87,20 @@ def build_payload(onset_detects,onset_detects_values,onset_classes,filename):
     payload["recDuration"]=recDuration
     payload["recSamplingRate"]=recSamplingRate
     payload["recFormat"]=recFormat
-    payload["detectionCount"]=len(onset_detects)
+    payload["detectionCount"]=len(onset_classes)
     payload["onsetThreshold"]=threshold
     payload["classThreshold"]=classThreshold
     payload["classType"]="ambient"
-    payload["peakTimeStamp"]=onset_detects
-    payload["peakMagnitude"]=onset_detects_values
+    # payload["peakTimeStamp"]=onset_detects
+    # payload["peakMagnitude"]=onset_detects_values
     payload["peakClass"]=onset_classes
     json_write(payload)
     print("ambient payload sent")
     print(payload)
     q1.put(payload)
 
-def build_anomaly_payload(onset_detects,onset_detects_values,onset_classes,filename):
-    if len(onset_detects)<=0:
+def build_anomaly_payload(onset_classes,filename):
+    if len(onset_classes)<=0:
         return
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%YT%H-%M-%S")
@@ -114,20 +114,20 @@ def build_anomaly_payload(onset_detects,onset_detects_values,onset_classes,filen
     q2_payload["recDuration"]=recDuration
     q2_payload["recSamplingRate"]=recSamplingRate
     q2_payload["recFormat"]=recFormat
-    q2_payload["detectionCount"]=len(onset_detects)
+    q2_payload["detectionCount"]=len(onset_classes)
     q2_payload["onsetThreshold"]=threshold
     q2_payload["classThreshold"]=classThreshold
     q2_payload["classType"]="anomaly"
-    q2_payload["peakTimeStamp"]=onset_detects
-    q2_payload["peakMagnitude"]=onset_detects_values
+    #q2_payload["peakTimeStamp"]=onset_detects
+    #q2_payload["peakMagnitude"]=onset_detects_values
     q2_payload["peakClass"]=onset_classes
     json_write(payload)
     print("anomaly payload sent")
     print(q2_payload)
     q2.put(q2_payload)
 
-def build_unknown_payload(onset_detects,onset_detects_values,onset_classes,filename):
-    if len(onset_detects)<=0:
+def build_unknown_payload(onset_classes,filename):
+    if len(onset_classes)<=0:
         return
     now = datetime.now()
     dt_string = now.strftime("%d-%m-%YT%H-%M-%S")
@@ -141,12 +141,12 @@ def build_unknown_payload(onset_detects,onset_detects_values,onset_classes,filen
     q2_payload["recDuration"]=recDuration
     q2_payload["recSamplingRate"]=recSamplingRate
     q2_payload["recFormat"]=recFormat
-    q2_payload["detectionCount"]=len(onset_detects)
+    q2_payload["detectionCount"]=len(onset_classes)
     q2_payload["onsetThreshold"]=threshold
     q2_payload["classThreshold"]=classThreshold
     q2_payload["classType"]="unknown"
-    q2_payload["peakTimeStamp"]=onset_detects
-    q2_payload["peakMagnitude"]=onset_detects_values
+    #q2_payload["peakTimeStamp"]=onset_detects
+    #q2_payload["peakMagnitude"]=onset_detects_values
     q2_payload["peakClass"]=onset_classes
     json_write(payload)
     print("unknown payload sent")
@@ -200,8 +200,8 @@ def detectanomaly(onsetclass,onsetpred,classThreshold):
     ambient=["Silence","Animal","Bird","Frog","Wild animals","Bird vocalization, bird call, bird song","Chirp, tweet","Cat","Meow","Domestic animals, pets","Cattle, bovinae","Pig","Oink","Hiss","Owl"]
     anomaly=["Glass","Wood","Speech","Cough","Chopping (food)","Tools","Filing (rasp)","Rub","Scrape","Chopping (food)","Beep, bleep","Buzzer","Hammer","Engine starting","Sewing machine","Rub","Tools","Sawing","Sanding","Filing (rasp)","Keys jangling","Coin (dropping)","Engine","Ratchet, pawl","Jackhammer","Chainsaw","Vehicle","Light engine (high frequency)"]
     if float(onsetpred) <= float(classThreshold):
-        print("detectanomaly function if statement",float(onsetpred)," ", float(classThreshold))
-        return 2
+        print("low onset pred",float(onsetpred)," ", float(classThreshold))
+        return 3
     for i in range(len(ambient)):
         if onsetclass == ambient[i]:
             return 0
@@ -209,7 +209,7 @@ def detectanomaly(onsetclass,onsetpred,classThreshold):
         if onsetclass == anomaly[i]:
             return 1
     print("detectanomaly function last return statement")
-    return 0
+    return 2
 #sampling rate is variable
 
 #filename="rec_2023-06-10T14-37-00.wav"
@@ -282,13 +282,19 @@ while 1:
             onset_detects_unknown=[]
             onset_detects_values_unknown=[]
             onset_classes_unknown=[]
+            
+            onset_classes_dict={"className":"","onsetTime":"","onsetMagnitude":"","confidence":""}
             # Print timestamps when the sound goes over the threshold
             for i in range(len(onset_times)):
                 if int(onset_times[i] * sr_init) < len(y_init) and y_init[int(onset_times[i] * sr_init)] > threshold:
                     #print(onset_time)
-                    onset_detects.append(str(onset_times[i]))
-                    onset_detects_values.append(str(y_init[int(onset_times[i] * sr_init)]))
+                    #onset_detects.append(str(onset_times[i]))
+                    #onset_detects_values.append(str(y_init[int(onset_times[i] * sr_init)]))
+                    
                     onset=int(onset_times[i] * sr_init)
+                    
+                    onset_classes_dict["onsetTime"]=str(onset_times[i])
+                    onset_classes_dict["onsetMagnitude"]=str(y_init[int(onset_times[i] * sr_init)])
                     #onset_y_init.append(onset)
                     if (onset-7800)>0 and ((onset+10800)<len(y_init)):
                         temp_data = y_init[onset-4800:onset+10800]
@@ -299,26 +305,33 @@ while 1:
                     filename=path2+str(file)+str(onset)
                     # librosa.output.write_wav(filename,temp_data,sr_init,norm=False)
                     onsetclass,onsetpred=inference(temp_data,filename)
-                    onset_classes.append({onsetclass:onsetpred})
+                    onset_classes_dict["className"]=onsetclass
+                    onset_classes_dict["confidence"]=onsetpred
+                    
                     flag=detectanomaly(onsetclass,onsetpred,classThreshold)
+                    print("flag is ",flag)
+                    
+                    if flag==0:
+                        onset_classes.append(onset_classes_dict)
                     if flag==1:
-                        onset_detects_anomaly.append(str(onset_times[i]))
-                        onset_detects_values_anomaly.append(str(y_init[int(onset_times[i] * sr_init)]))
-                        onset_classes_anomaly.append({onsetclass:onsetpred})
+                        #onset_detects_anomaly.append(str(onset_times[i]))
+                        #onset_detects_values_anomaly.append(str(y_init[int(onset_times[i] * sr_init)]))
+                        onset_classes_anomaly.append(onset_classes_dict)
                     if flag==2:
-                        onset_detects_unknown.append(str(onset_times[i]))
-                        onset_detects_values_unknown.append(str(y_init[int(onset_times[i] * sr_init)]))
-                        onset_classes_unknown.append({onsetclass:onsetpred})
+                        #onset_detects_unknown.append(str(onset_times[i]))
+                        #onset_detects_values_unknown.append(str(y_init[int(onset_times[i] * sr_init)]))
+                        onset_classes_unknown.append(onset_classes_dict)
 
-            print("detected time are",onset_detects)
-            print("detected values are",onset_detects_values)
+            #print("detected time are",onset_detects)
+            #print("detected values are",onset_detects_values)
             print("detected classes are",onset_classes)
-            if len(onset_detects) > 0:
-                build_payload(onset_detects,onset_detects_values,onset_classes,file)
-                if len(onset_detects_anomaly)!=0:
-                    build_anomaly_payload(onset_detects_anomaly,onset_detects_values_anomaly,onset_classes_anomaly,file)
-                if len(onset_detects_values_unknown)!=0:
-                    build_unknown_payload(onset_detects_unknown,onset_detects_values_unknown,onset_classes_unknown,file)
+            #if len(onset_detects) > 0:
+            if len(onset_classes)!=0:
+                build_payload(onset_classes,file)
+            if len(onset_classes_anomaly)!=0:
+                build_anomaly_payload(onset_classes_anomaly,file)
+            if len(onset_classes_unknown)!=0:
+                build_unknown_payload(onset_classes_unknown,file)
             os.rename(path2+audio_file,path3+audio_file)
                 
             #print("detected y_init times are",onset_y_init)
