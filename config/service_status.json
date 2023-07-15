@@ -1,0 +1,1 @@
+{"collective_status": 1, "services": [{"service": "recorder", "status": "inactive"},{"service": "detector", "status": "inactive"},{"service": "telemetry", "status": "active"},{"service": "requestHandler", "status": "inactive"},{"service": "gps", "status": "inactive"},{"service": "systemstats", "status": "active"}]}
